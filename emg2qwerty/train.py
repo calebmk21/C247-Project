@@ -69,6 +69,7 @@ def main(config: DictConfig):
             optimizer=config.optimizer,
             lr_scheduler=config.lr_scheduler,
             decoder=config.decoder,
+
         )
 
     # Instantiate LightningDataModule
