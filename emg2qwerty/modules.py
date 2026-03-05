@@ -278,3 +278,93 @@ class TDSConvEncoder(nn.Module):
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         return self.tds_conv_blocks(inputs)  # (T, N, num_features)
+
+
+class GRUBlock(nn.Module):
+    """
+    GRU Block consisting of multiple GRU layers and a single fully-connected linear
+    layer at the end (based on architecture as provided at:
+    https://www.geeksforgeeks.org/machine-learning/gated-recurrent-unit-networks/)
+
+    Args:
+        input_size:
+            For input to GRU, where dimension is (sequence_length, batch_size, input_size)
+            Refer to third dimension (num_features) in input in self.model in lightning.py
+        hidden_size:
+            For output to GRU, where the dimension is (sequence_length, batch_size, hidden_size)
+        num_layers:
+            Number of layers for GRU
+        dropout:
+            Value in range 0 to 1, specifies dropout amount for each GRU layer except last layer
+    Related Definitions for Reference:
+        sequence_length:
+            For input to GRU, where dimension is (sequence_length, batch_size, input_size)
+            Refer to first dimension (T) in input in self.model in lightning.py
+        batch_size:
+            For input to GRU, where dimension is (sequence_length, batch_size, input_size)
+            Refer to second dimension (N) in input in self.model in lightning.py
+    """
+
+    def __init__(self, input_size: int, hidden_size: int, num_layers: int = 1, dropout: float = 0.35):
+        super().__init__()
+
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.dropout = dropout
+
+        self.GRU = nn.GRU(
+            input_size,
+            hidden_size,
+            num_layers=num_layers,
+            dropout=dropout
+        )
+
+        self.linear = TDSFullyConnectedBlock(hidden_size)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        # (T, N, num_features)
+        T, N, num_features = inputs.shape
+        if N == 1:
+            # During test time, input is given as a single batch
+            with torch.backends.cudnn.flags(
+                    enabled=False):  # Citation: this line was suggested by ChatGPT to resolve cuDNN error: CUDNN_STATUS_NOT_SUPPORTED during test time
+                x, _ = self.GRU(inputs)
+        else:
+            x, _ = self.GRU(inputs)
+        # (T, N, hidden_size)
+        x = self.linear(x)
+        # (T, N, hidden_size)
+        return x
+
+class AttentionBlock(nn.Module):
+    """
+    Multi-Head Attention Module based on "Attention is all you need"
+
+
+    """
+    def __init__(self, embed_dim: int, num_heads: int = 1, dropout: float = 0.0, bias: bool = True, attn_mask: torch.Tensor = None):
+        super().__init__()
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.dropout = dropout
+        self.bias = bias,
+        self.attn_mask = attn_mask
+
+        self.MultiheadAttention = nn.MultiheadAttention(
+            embed_dim,
+            num_heads,
+            dropout,
+            bias,
+            attn_mask
+        )
+
+    def forward(self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        attn_mask=None,
+        ) -> torch.Tensor:
+        x, _ = self.MultiheadAttention(queries=query, keys=key, values=value, attn_mask=attn_mask)
+
+        return x
