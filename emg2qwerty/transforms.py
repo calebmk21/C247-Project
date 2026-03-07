@@ -12,6 +12,10 @@ import numpy as np
 import torch
 import torchaudio
 
+import torch.nn.functional as F
+from typing import Tuple
+
+
 
 TTransformIn = TypeVar("TTransformIn")
 TTransformOut = TypeVar("TTransformOut")
@@ -243,3 +247,123 @@ class SpecAugment:
 
         # (..., C, freq, T) -> (T, ..., C, freq)
         return x.movedim(-1, 0)
+
+
+@dataclass
+class RandomAmplitudeScale:
+    """
+    Randomly scales signal amplitude.
+
+    Args:
+        min_scale (float): Minimum scaling factor.
+        max_scale (float): Maximum scaling factor.
+    """
+
+    min_scale: float = 0.8
+    max_scale: float = 1.2
+
+    def __call__(self, tensor: torch.Tensor) -> torch.Tensor:
+        scale = np.random.uniform(self.min_scale, self.max_scale)
+        return tensor * scale
+
+@dataclass
+class GaussianJitter:
+    """
+    Adds Gaussian noise to a time series tensor.
+
+    x' = x + ε
+    ε ~ N(0, σ²)
+
+    Args:
+        sigma (float): Standard deviation of the Gaussian noise.
+    """
+
+    sigma: float = 0.01
+
+    def __post_init__(self):
+        assert self.sigma >= 0
+
+    def __call__(self, tensor: torch.Tensor) -> torch.Tensor:
+        if self.sigma == 0:
+            return tensor
+
+        noise = torch.randn_like(tensor) * self.sigma
+        return tensor + noise
+
+@dataclass
+class WindowWarp:
+    """
+    Randomly warps a window of a time series by speeding it up or slowing it down,
+    then resamples the result to the original length to avoid zero-padding.
+    """
+    window_ratio: float = 0.2
+    warp_ratios: Tuple[float, ...] = (0.5, 2.0)
+    time_dim: int = 0
+
+    def __call__(self, tensor: torch.Tensor) -> torch.Tensor:
+        # 1. Basic Setup
+        T = tensor.shape[self.time_dim]
+        window_size = max(1, int(T * self.window_ratio))
+        
+        if window_size >= T or window_size < 2:
+            return tensor
+
+        # 2. Randomly select window and warp factor
+        start = np.random.randint(0, T - window_size + 1)
+        ratio = float(np.random.choice(self.warp_ratios))
+        new_window_size = max(2, int(window_size * ratio))
+
+        # 3. Slice segments using 'narrow' (much safer than [:] for dynamic dims)
+        head = tensor.narrow(self.time_dim, 0, start)
+        window = tensor.narrow(self.time_dim, start, window_size)
+        tail = tensor.narrow(self.time_dim, start + window_size, T - (start + window_size))
+
+        # 4. Warp the window segment
+        # Step A: Move time_dim to the last position
+        window_transposed = window.transpose(self.time_dim, -1)
+        orig_win_shape = window_transposed.shape
+        
+        # Step B: Flatten all non-time dims into a single "channel" dim for F.interpolate
+        # Resulting shape: (1, Channels, Time) -> This is the 3D input required!
+        flat_window = window_transposed.reshape(1, -1, window_size)
+        
+        warped_flat = F.interpolate(
+            flat_window, 
+            size=new_window_size, 
+            mode="linear", 
+            align_corners=False
+        )
+
+        # Step C: Reshape back and transpose to original dim order
+        new_win_shape = list(orig_win_shape)
+        new_win_shape[-1] = new_window_size
+        warped = warped_flat.view(*new_win_shape).transpose(self.time_dim, -1)
+
+        # 5. Concatenate and Resample to original length T
+        # Simply padding with zeros creates a frequency "cliff" that ruins EMG data.
+        # Instead, we resample the entire augmented sequence back to length T.
+        combined = torch.cat([head, warped, tail], dim=self.time_dim)
+        
+        final_transposed = combined.transpose(self.time_dim, -1)
+        final_flat = final_transposed.reshape(1, -1, final_transposed.shape[-1])
+        
+        resampled_final = F.interpolate(
+            final_flat, 
+            size=T, 
+            mode="linear", 
+            align_corners=False
+        )
+        
+        final_shape = list(final_transposed.shape)
+        final_shape[-1] = T
+        return resampled_final.view(*final_shape).transpose(self.time_dim, -1)
+
+class Compose:
+    """Simple wrapper to chain multiple transforms."""
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, x):
+        for t in self.transforms:
+            x = t(x)
+        return x
