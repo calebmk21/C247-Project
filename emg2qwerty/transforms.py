@@ -190,6 +190,45 @@ class LogSpectrogram:
 
 
 @dataclass
+class RandomLogSpectrogram:
+    """Creates log-scaled spectrogram from an EMG signal. In the case of
+    multi-channeled signal, the channels are treated independently.
+    The input must be of shape (T, ...) and the returned spectrogram
+    is of shape (T, ..., freq).
+
+    The base of the log is randomly varied slightly from range 8.5 to 11.5.
+
+    Args:
+        n_fft (int): Size of FFT, creates n_fft // 2 + 1 frequency bins.
+            (default: 64)
+        hop_length (int): Number of samples to stride between consecutive
+            STFT windows. (default: 16)
+    """
+
+    n_fft: int = 64
+    hop_length: int = 16
+
+    def __post_init__(self) -> None:
+        self.spectrogram = torchaudio.transforms.Spectrogram(
+            n_fft=self.n_fft,
+            hop_length=self.hop_length,
+            normalized=True,
+            # Disable centering of FFT windows to avoid padding inconsistencies
+            # between train and test (due to differing window lengths), as well
+            # as to be more faithful to real-time/streaming execution.
+            center=False,
+        )
+
+    def __call__(self, tensor: torch.Tensor) -> torch.Tensor:
+        x = tensor.movedim(0, -1)  # (T, ..., C) -> (..., C, T)
+        spec = self.spectrogram(x)  # (..., C, freq, T)
+        base = 8.5 + np.random.rand() * 3.0
+        base = torch.tensor(base)
+        logspec = torch.log10(spec + 1e-6) / torch.log10(base + 1e-6)  # (..., C, freq, T)
+        return logspec.movedim(-1, 0)  # (T, ..., C, freq)
+
+
+@dataclass
 class SpecAugment:
     """Applies time and frequency masking as per the paper
     "SpecAugment: A Simple Data Augmentation Method for Automatic Speech
