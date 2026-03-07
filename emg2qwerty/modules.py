@@ -337,34 +337,116 @@ class GRUBlock(nn.Module):
         # (T, N, hidden_size)
         return x
 
-class AttentionBlock(nn.Module):
-    """
-    Multi-Head Attention Module based on "Attention is all you need"
-
-
-    """
-    def __init__(self, embed_dim: int, num_heads: int = 1, dropout: float = 0.0, bias: bool = True, attn_mask: torch.Tensor = None):
+class LSTMBlock(nn.Module):
+    def __init__(self, input_size: int, hidden_size: int, num_layers: int = 1, bias: bool = True, dropout: float = 0.0, bidirectional: bool = False):
         super().__init__()
-        self.embed_dim = embed_dim
-        self.num_heads = num_heads
-        self.dropout = dropout
-        self.bias = bias,
-        self.attn_mask = attn_mask
 
-        self.MultiheadAttention = nn.MultiheadAttention(
-            embed_dim,
-            num_heads,
-            dropout,
-            bias,
-            attn_mask
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.dropout = dropout
+        self.bidirectional = bidirectional
+        self.bias = bias
+
+        self.LSTM = nn.GRU(
+            input_size,
+            hidden_size,
+            num_layers=num_layers,
+            dropout=dropout,
+            bidirectional=bidirectional,
         )
 
-    def forward(self,
-        query: torch.Tensor,
-        key: torch.Tensor,
-        value: torch.Tensor,
-        attn_mask=None,
-        ) -> torch.Tensor:
-        x, _ = self.MultiheadAttention(queries=query, keys=key, values=value, attn_mask=attn_mask)
+        self.linear = TDSFullyConnectedBlock(hidden_size)
 
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        # (T, N, num_features)
+        T, N, num_features = inputs.shape
+        if N == 1:
+            # During test time, input is given as a single batch
+            with torch.backends.cudnn.flags(
+                    enabled=False):  # Citation: this line was suggested by ChatGPT to resolve cuDNN error: CUDNN_STATUS_NOT_SUPPORTED during test time
+                x, _ = self.LSTM(inputs)
+        else:
+            x, _ = self.LSTM(inputs)
+        # (T, N, hidden_size)
+        x = self.linear(x)
+        # (T, N, hidden_size)
         return x
+
+class TransformerBlock(nn.Module):
+    def __init__(self, d_model: int = 512, nhead: int = 8, num_encoder_layers: int = 6, num_decoder_layers: int = 6, dim_feedforward: int = 2048, dropout: float = 0.1, activation: str = 'relu'):
+        super().__init__()
+        self.d_model = d_model
+        self.nhead = nhead
+        self.num_encoder_layers = num_encoder_layers
+        self.num_decoder_layers = num_decoder_layers
+        self.dim_feedforward = dim_feedforward
+        self.dropout = dropout
+        self.activation = activation
+
+        self.Transformer = nn.Transformer(
+            d_model,
+            num_encoder_layers=num_encoder_layers,
+            num_decoder_layers=num_decoder_layers,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            activation=activation,
+            device='cuda' if torch.cuda.is_available() else 'cpu',
+        )
+
+
+        self.src = torch.rand(d_model, d_model)
+        self.tgt = torch.rand(d_model, d_model)
+
+    def forward(self, src) -> torch.Tensor:
+        x, _ = self.Transformer(self.src, self.tgt)
+        return x
+
+
+
+
+# class AttentionBlock(nn.Module):
+#     """
+#     Multi-Head Attention Module based on "Attention is all you need"
+#
+#
+#     """
+#     def __init__(self, input_size: int,
+#                  embed_dim: int,
+#                  num_heads: int = 1,
+#                  dropout: float = 0.0,
+#                  query: torch.Tensor = None,
+#                  key: torch.Tensor = None,
+#                  value: torch.Tensor = None,
+#                  bias: bool = True,
+#                  attn_mask: torch.Tensor = None):
+#         super().__init__()
+#         self.input_size = input_size
+#         self.embed_dim = embed_dim
+#         self.num_heads = num_heads
+#         self.dropout = dropout
+#         self.bias = bias,
+#         self.attn_mask = attn_mask
+#         self.query = query
+#         self.key = key
+#         self.value = value
+#
+#         self.MultiheadAttention = nn.MultiheadAttention(
+#             embed_dim,
+#             num_heads,
+#             dropout,
+#             bias,
+#             attn_mask
+#         )
+#
+#         if query is None:
+#             self.query = torch.rand(input_size, embed_dim)
+#         if key is None:
+#             self.key = torch.rand(input_size, embed_dim)
+#         if value is None:
+#             self.value = torch.rand(input_size, embed_dim)
+#
+#     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+#         x, _ = self.MultiheadAttention(query=self.query, key=self.key, value=self.value, attn_mask=None)
+#
+#         return x

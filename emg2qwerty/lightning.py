@@ -14,6 +14,7 @@ import torch
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 from torch import nn
+from torch.cuda import device
 from torch.utils.data import ConcatDataset, DataLoader
 from torchmetrics import MetricCollection
 
@@ -26,7 +27,8 @@ from emg2qwerty.modules import (
     SpectrogramNorm,
     TDSConvEncoder,
     GRUBlock,
-    AttentionBlock
+    LSTMBlock,
+    TransformerBlock
 )
 from emg2qwerty.transforms import Transform
 
@@ -692,6 +694,11 @@ class Minion(pl.LightningModule):
         optimizer: DictConfig,
         lr_scheduler: DictConfig,
         decoder: DictConfig,
+        num_layers_gru: int,
+        gru_dropout: float,
+        num_layers_lstm: int,
+        lstm_dropout: float
+
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -711,29 +718,34 @@ class Minion(pl.LightningModule):
             ),
             # (T, N, num_features)
             nn.Flatten(start_dim=2),
-            TDSConvEncoder(
-                num_features=num_features,
-                block_channels=block_channels,
-                kernel_width=kernel_width,
-            ),
-            # AttentionBlock(
-            #     embed_dim=num_features,
-            #     num_heads=1,
+            # TransformerBlock(
+            #     d_model=num_features,
+            #     nhead=8,
+            #     dim_feedforward=32,
+            #     dropout=0.1,
+            #     activation="relu"
             # ),
             GRUBlock(
                 input_size=num_features,
                 hidden_size=num_features,
-                num_layers=2
+                num_layers=1,
+                dropout=0.4
             ),
             TDSConvEncoder(
                 num_features=num_features,
                 block_channels=block_channels,
                 kernel_width=kernel_width,
             ),
+            GRUBlock(
+                input_size=num_features,
+                hidden_size=num_features,
+                num_layers=3,
+                dropout=0.4
+            ),
             # (T, N, num_classes)
             nn.Linear(num_features, charset().num_classes),
             nn.LogSoftmax(dim=-1),
-        )
+        ).to('cuda:0')
 
         # Criterion
         self.ctc_loss = nn.CTCLoss(blank=charset().null_class)
@@ -749,6 +761,7 @@ class Minion(pl.LightningModule):
                 for phase in ["train", "val", "test"]
             }
         )
+
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         return self.model(inputs)
