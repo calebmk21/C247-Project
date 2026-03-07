@@ -212,6 +212,55 @@ class TDSConv2dBlock(nn.Module):
         # Layer norm over C
         return self.layer_norm(x)  # TNC
 
+class VanillaGRUBlock(nn.Module):
+    """
+    GRU Block consisting of multiple GRU layers
+
+    Args:
+        input_size:
+            For input to GRU, where dimension is (sequence_length, batch_size, input_size)
+            Refer to third dimension (num_features) in input in self.model in lightning.py
+        hidden_size:
+            For output to GRU, where the dimension is (sequence_length, batch_size, hidden_size)
+        num_layers:
+            Number of layers for GRU
+        dropout:
+            Value in range 0 to 1, specifies dropout amount for each GRU layer except last layer
+    Related Definitions for Reference:
+        sequence_length: 
+            For input to GRU, where dimension is (sequence_length, batch_size, input_size)
+            Refer to first dimension (T) in input in self.model in lightning.py
+        batch_size: 
+            For input to GRU, where dimension is (sequence_length, batch_size, input_size)
+            Refer to second dimension (N) in input in self.model in lightning.py
+    """
+    def __init__(self, input_size: int, hidden_size: int, num_layers: int = 1, dropout: float = 0.0):
+        super().__init__()
+        
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.dropout = dropout
+
+        self.GRU = nn.GRU(
+            input_size,
+            hidden_size,
+            num_layers = num_layers,
+            dropout = dropout
+        )
+    
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        # (T, N, num_features)
+        T, N, num_features = inputs.shape
+        if N == 1:
+            # During test time, input is given as a single batch
+            with torch.backends.cudnn.flags(enabled=False):   # Citation: this line was suggested by ChatGPT to resolve cuDNN error: CUDNN_STATUS_NOT_SUPPORTED during test time
+                x, _ = self.GRU(inputs)
+        else:
+            x, _ = self.GRU(inputs)
+        # (T, N, hidden_size)
+        return x
+
 class GRUBlock(nn.Module):
     """
     GRU Block consisting of multiple GRU layers and a single fully-connected linear
