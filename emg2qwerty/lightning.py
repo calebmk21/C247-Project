@@ -28,7 +28,8 @@ from emg2qwerty.modules import (
     TDSConvEncoder,
     GRUBlock,
     LSTMBlock,
-    TransformerBlock
+    TransformerBlock,
+    TDSFullyConnectedBlock
 )
 from emg2qwerty.transforms import Transform
 
@@ -725,12 +726,13 @@ class Minion(pl.LightningModule):
             #     dropout=0.1,
             #     activation="relu"
             # ),
-            GRUBlock(
-                input_size=num_features,
-                hidden_size=num_features,
-                num_layers=1,
-                dropout=0.4
-            ),
+            # GRUBlock(
+            #     input_size=num_features,
+            #     hidden_size=num_features,
+            #     num_layers=1,
+            #     dropout=0.4
+            # ),
+            TDSFullyConnectedBlock(num_features=num_features),
             TDSConvEncoder(
                 num_features=num_features,
                 block_channels=block_channels,
