@@ -719,20 +719,12 @@ class Minion(pl.LightningModule):
             ),
             # (T, N, num_features)
             nn.Flatten(start_dim=2),
-            # TransformerBlock(
-            #     d_model=num_features,
-            #     nhead=8,
-            #     dim_feedforward=32,
-            #     dropout=0.1,
-            #     activation="relu"
-            # ),
-            # GRUBlock(
-            #     input_size=num_features,
-            #     hidden_size=num_features,
-            #     num_layers=1,
-            #     dropout=0.4
-            # ),
-            TDSFullyConnectedBlock(num_features=num_features),
+            GRUBlock(
+                input_size=num_features,
+                hidden_size=num_features,
+                num_layers=1,
+                dropout=0.4
+            ),
             TDSConvEncoder(
                 num_features=num_features,
                 block_channels=block_channels,
