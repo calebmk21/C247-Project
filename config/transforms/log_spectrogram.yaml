@@ -1,4 +1,8 @@
 # @package _global_
+channel_select:
+  _target_: emg2qwerty.transforms.ChannelSelectTransform
+  channel_indices: [0, 4, 8, 12] # Change this for your experiments
+
 to_tensor:
   _target_: emg2qwerty.transforms.ToTensor
   fields: [emg_left, emg_right]
@@ -31,10 +35,12 @@ transforms:
     - ${band_rotation}
     - ${temporal_jitter}
     - ${logspec}
+    - ${channel_select}
     - ${specaug}
 
   val:
     - ${to_tensor}
     - ${logspec}
+    - ${channel_select}
 
   test: ${transforms.val}

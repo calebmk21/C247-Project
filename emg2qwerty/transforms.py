@@ -243,3 +243,12 @@ class SpecAugment:
 
         # (..., C, freq, T) -> (T, ..., C, freq)
         return x.movedim(-1, 0)
+
+class ChannelSelectTransform:
+    def __init__(self, channel_indices: list[int]):
+        self.channel_indices = channel_indices
+
+    def __call__(self, data: np.ndarray) -> np.ndarray:
+        # data shape: (time, bands, channels, freq)
+        # We slice index 2, which is the channel dimension
+        return data[:, :, self.channel_indices, :]
