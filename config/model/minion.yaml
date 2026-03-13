@@ -1,7 +1,8 @@
 # @package _global_
 module:
   _target_: emg2qwerty.lightning.Minion
-  in_features: 528  # freq * channels = (n_fft // 2 + 1) * 16
+  num_electrodes: 4
+  in_features: 132  # freq * channels = (n_fft // 2 + 1) * 16
   mlp_features: [384]
   block_channels: [24, 24, 24, 24] # baseline is [24, 24, 24, 24]
   kernel_width: 32  # Total temporal receptive field of 125 samples given 4 layers

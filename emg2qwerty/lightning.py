@@ -684,7 +684,7 @@ class GRUConvCTCModule(pl.LightningModule):
 
 class Minion(pl.LightningModule):
     NUM_BANDS: ClassVar[int] = 2
-    ELECTRODE_CHANNELS: ClassVar[int] = 16
+    # ELECTRODE_CHANNELS: ClassVar[int] = 16
 
     def __init__(
         self,
@@ -692,6 +692,7 @@ class Minion(pl.LightningModule):
         mlp_features: Sequence[int],
         block_channels: Sequence[int],
         kernel_width: int,
+        num_electrodes: int,
         optimizer: DictConfig,
         lr_scheduler: DictConfig,
         decoder: DictConfig,
@@ -703,7 +704,8 @@ class Minion(pl.LightningModule):
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
-
+        
+        self.ELECTRODE_CHANNELS = num_electrodes
         num_features = self.NUM_BANDS * mlp_features[-1]
 
         # Model
