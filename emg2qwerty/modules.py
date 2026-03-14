@@ -382,7 +382,7 @@ class LSTMBlock(nn.Module):
         self.bidirectional = bidirectional
         self.bias = bias
 
-        self.LSTM = nn.GRU(
+        self.LSTM = nn.LSTM(
             input_size,
             hidden_size,
             num_layers=num_layers,
