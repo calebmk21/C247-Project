@@ -1,4 +1,39 @@
 # C147/247 Final Project
+
+## Notes on our group's implementations
+All implementations for experiments are located in the following branches as outlined below, **do not refer to the main branch for final implementations**. Please refer to the report for more detailed descriptions of each implementation and experiment:
+
+- Conv (Baseline):
+  - Model architecture: TDSConvCTCModule in lightning.py
+  - Branch: caleb-dev
+- GRU:
+  - GRU block: GRUBlock in modules.py
+  - Model architecture: GRUCTCModule in lightning.py
+  - Branch: caleb-dev
+- Conv-GRU:
+  - Model architecture: ConvGRUCTCModule in lightning.py
+  - Branch: caleb-dev
+- GRU-Conv:
+  - Model architecture: GRUConvCTCModule in lightning.py
+  - Branch: caleb-dev
+- GRU-Conv-GRU (GRU Sandwich)
+  - Model architecture: Minion in lightning.py
+  - Branch: caleb-dev
+- BiGRU experiments:
+  - BiGRU block: BidirectionalGRUBlock in modules.py
+  - Model architectures: BidirectionalGRUCTCModule, CNNBidirectionalGRUCTCModule, BidirectionalGRUConvCTCModule, and BiGRU_Conv_BiGRU_CTCModule in lightning.py
+  - Branch: anvi-dev
+- GRU Block without TDS Fully Connected Block:
+  - GRUBlockNoFC in modules.py
+  - Branch: caleb-dev
+- Conv-GRU-LSTM:
+  - LSTM block: LSTMBlock in modules.py
+  - Model architecture: ConvGRULSTM in lightning.py
+  - Branch: caleb-dev
+- Impact of Channels on Decoding Performance:
+  - ChannelSelectTransform in transform.py
+  - Branch: tcai
+
 ### Winter 2026 
 
 This course project is built upon the emg2qwerty work from Meta. The first section of this README provides some guidance for working with the repo and contains a running list of FAQs. **Note that the rest of the README is from the original repo and we encourage you to take a look at their work.**
