@@ -1,7 +1,7 @@
 # C147/247 Final Project
 
 ## Notes on our group's implementations
-All implementations for experiments are located in the following branches as outlined below, **do not refer to the main branch for final implementations**. Please refer to the report for more detailed descriptions of each implementation and experiment:
+All implementations for experiments are located in the following branches as outlined below, **not all of our experiments and implementations are on the main branch**. Please refer to the report for more detailed descriptions of each implementation and experiment:
 
 - Conv (Baseline):
   - Model architecture: TDSConvCTCModule in lightning.py
@@ -33,6 +33,8 @@ All implementations for experiments are located in the following branches as out
 - Impact of Channels on Decoding Performance:
   - ChannelSelectTransform in transform.py
   - Branch: tcai
+- Variable Sampling Rate
+  - Experiments conducted on commit 4967a6c on the main branch
 
 ### Winter 2026 
 
