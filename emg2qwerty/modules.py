@@ -337,6 +337,40 @@ class GRUBlock(nn.Module):
         # (T, N, hidden_size)
         return x
 
+class GRUBlockNoFC(nn.Module):
+    """
+    Identical copy of GRUBlock but without the linear FC layer
+    """
+
+    def __init__(self, input_size: int, hidden_size: int, num_layers: int = 1, dropout: float = 0.35):
+        super().__init__()
+
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.dropout = dropout
+
+        self.GRU = nn.GRU(
+            input_size,
+            hidden_size,
+            num_layers=num_layers,
+            dropout=dropout
+        )
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        # (T, N, num_features)
+        T, N, num_features = inputs.shape
+        if N == 1:
+            # During test time, input is given as a single batch
+            with torch.backends.cudnn.flags(
+                    enabled=False):  # Citation: this line was suggested by ChatGPT to resolve cuDNN error: CUDNN_STATUS_NOT_SUPPORTED during test time
+                x, _ = self.GRU(inputs)
+        else:
+            x, _ = self.GRU(inputs)
+
+        return x
+
+
 class LSTMBlock(nn.Module):
     def __init__(self, input_size: int, hidden_size: int, num_layers: int = 1, bias: bool = True, dropout: float = 0.0, bidirectional: bool = False):
         super().__init__()
